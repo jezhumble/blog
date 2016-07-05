@@ -1,0 +1,34 @@
+---
+layout: post
+status: publish
+published: true
+title: Nullable Types in C#
+author:
+  display_name: jez
+  login: jez
+  email: jez@jezhumble.net
+  url: ''
+author_login: jez
+author_email: jez@jezhumble.net
+excerpt: One of the "late-breaking features" of C# 2.0 was nullable types. They are
+  supposed to make object-relational mapping easier, being effectively nullable primitives
+  which behave more closely like the types in SQL. However I have just spent an hour
+  debugging a problem which demonstrates very clearly how language features such as
+  this simply make life more difficult for developers.
+wordpress_id: 3
+wordpress_url: http://blog.urbanguru.net/?p=3
+date: '2006-04-25 15:35:31 +0000'
+date_gmt: '2006-04-25 14:35:31 +0000'
+---
+<p>One of the "late-breaking features" of C# 2.0 was nullable types. They are supposed to make object-relational mapping easier, being effectively nullable primitives which behave more closely like the types in SQL. However I have just spent an hour debugging a problem which demonstrates very clearly how language features such as this simply make life more difficult for developers.<a id="more"></a><a id="more-3"></a></p>
+<p>In .NET, as in most object oriented languages, there is a distinction between primitive types and objects. In C#, as in C++, it is possible to define your own primitives using the <strong>struct</strong> keyword. C# structs cannot be inherited from, cannot have null assigned to them, and have their memory allocated from the stack instead of the heap.</p>
+<p>The fact that structs are not nullable is a frequent irritation when coding in C#. For example, the .NET <strong>DateTime</strong> type is defined as a struct, and so when designing a form which has an optional date field, much messing around results. Your options are basically to create an object which wraps the <strong>DateTime</strong> struct, or to make <strong>DateTime.MinValue</strong> behave like <strong>null</strong>. Even though the latter is clearly evil and dirty, for some reason we have adopted it in our code.</p>
+<p>With the advent of generics in C# 2.0, a solution was devised for this problem. First of all, the .NET framework provides a struct called <strong>Nullable&lt;T&gt;</strong>, which behaves like a wrapper for primitives. Then they added some syntactical sugar such that when you append ? to a primitive declaration, it compiles into an object of type <strong>Nullable</strong><strong>&lt;primitive&gt;</strong>. So for example <strong>decimal? needlesInMyEye</strong> becomes <strong>Nullable</strong><strong>&lt;decimal&gt;</strong><strong> needlesInMyEye</strong>.</p>
+<p>However this becomes a pain in the ass exactly where you most want it - when doing object relational mapping. So in my current project we're binding a field in our form to a property of one of our domain objects. The property in question is mapped to a NOT NULL field in the relevant table, and so in the class definition it is defined as <strong>decimal?</strong>. Weirdly though, the binding fails. When you enter the string "12.5" in the form field, the property gets assigned "null". If you remove the ?, the binding works and the property gets assigned the value 12.5.</p>
+<p>Once you know how the syntactical sugar works and hence what is happening under the hood, it is obvious why this occurs. The form field binding knows how to cast a <strong>string</strong> to a <strong>decimal</strong>, but not how to cast a <strong>string</strong> to an object of type <strong>Nullable&lt;decimal&gt;,</strong> and so assigns null to it instead. So we've introduced a temporary hack to by providing a wrapper for the property which takes type <strong>string</strong> and does the parsing explicitly. Great.</p>
+<p>More generally, it is tempting for developers to mix nullable and non-nullable types in the domain, believing they are basically the same type of thing when in fact they are fundamentally different. You then end up in a situation where you don't know if you're dealing with a generic struct or a primitive. Since these types are not interchangeable, you are just going to end up with a series of hacks throughout the codebase like the one described in the paragraph above.</p>
+<p>I think the root problem is having a distinction between primitives and objects in the first place. In languages like Smalltalk and Ruby there is no such distinction - everything is an object. Clearly the fact that these languages are neither strongly nor statically typed removes the problem of casting and makes it easier to avoid primitives. But I would love to have people give me some good reasons why C# and Java require primitives (over and above arguments based on speed and efficiency).</p>
+<p>Meanwhile the advice is clear: don't mix and match nullable types and primitives; they won't autobox and they aren't interchangeable. To avoid confusion, prefer objects to nullable types - in almost all cases you'll have behaviour you want to give them, in which case you'll want objects in any case. In particular, having static methods that operate on nullable types is a clear warning sign that what you actually want is an object.</p>
+<p><strong>Update: binding to nullable types in WinForms<br />
+</strong></p>
+<p>Originally in this update I provided a complicated solution to the problem mentioned above that binding to nullable types didn't appear to work. It turns out that it in fact does work, provided you explicitly set the DataSourceUpdateMode to DataSourceUpdateMode.OnPropertyChanged (new in .NET 2.0) when doing the binding. Thanks to Edbert for the tip (see comment below).</p>

@@ -1,0 +1,47 @@
+---
+layout: post
+status: publish
+published: true
+title: How to write a good service layer and avoid testing hell
+author:
+  display_name: jez
+  login: jez
+  email: jez@jezhumble.net
+  url: ''
+author_login: jez
+author_email: jez@jezhumble.net
+excerpt: "I've learned some important things from my most recent project, a (rich)
+  client - server application written in C# / .NET 2.0 that stores data in SQL server.
+  Probably the most crucial thing is how important it is to get your service layer
+  right. As described in a <a href=\"http://blog.urbanguru.net/?p=8\">previous post</a>,
+  we initially sent domain objects over the wire, using what was basically RPC (the
+  .NET WebService attribute). We fixed the problem of circular references in our graph
+  by using a modified version of XStream. We then addressed the proliferation of web
+  services by moving to a single web service which passed across a document-style
+  message containing the names of the class and method to call (instantiated using
+  introspection) and the object graph. The issue of updates from one screen not propagating
+  to others was resolved by having a dictionary of all objects on the client side
+  so that when an object was updated, it was visible to the other parts of the client.
+  We fixed the poor performance of sending huge graphs across by using this dictionary
+  as a cache. However the \"services\" are still very fine-grained RPC and basically
+  useless to anyone else - although still a good solution for the problem they solve.\r\n\r\n"
+wordpress_id: 18
+wordpress_url: http://blog.urbanguru.net/?p=18
+date: '2006-12-17 14:50:11 +0000'
+date_gmt: '2006-12-17 13:50:11 +0000'
+---
+<p>I've learned some important things from my most recent project, a (rich) client - server application written in C# / .NET 2.0 that stores data in SQL server. Probably the most crucial thing is how important it is to get your service layer right. As described in a <a href="http://blog.urbanguru.net/?p=8">previous post</a>, we initially sent domain objects over the wire, using what was basically RPC (the .NET WebService attribute). We fixed the problem of circular references in our graph by using a modified version of XStream. We then addressed the proliferation of web services by moving to a single web service which passed across a document-style message containing the names of the class and method to call (instantiated using introspection) and the object graph. The issue of updates from one screen not propagating to others was resolved by having a dictionary of all objects on the client side so that when an object was updated, it was visible to the other parts of the client. We fixed the poor performance of sending huge graphs across by using this dictionary as a cache. However the "services" are still very fine-grained RPC and basically useless to anyone else - although still a good solution for the problem they solve.</p>
+<p><a id="more"></a><a id="more-18"></a>Quite late on, we've had to create a "migration" service that allows us to import data from other products into ours. It turns out that these services are coarse-grained and don't change much. They are weakly typed, require us to validate our data at the server side, and provide helpful error messages since the data we'll be importing will be of varying quality and completeness. They must also be fast, since the data sets are large, and the users of the software can't tolerate much downtime. In short, they are "proper" (POST-style) services as opposed to RPC, which must satisfy many of the constraints imposed on a service oriented architecture.</p>
+<p>It turns out they might also be good candidates to solve another problem - putting the application into the various states required by acceptance testing. Acceptance criteria can be expressed concisely using the "given ... when ... then ..." format - but one of the key problems is getting the application into the state expressed in the "given" clause. We'd long ago abandoned using sql scripts to load test data into the database for this purpose since:</p>
+<ul>
+<li>refactoring sql scripts when your domain model changes is really hard, and the scripts get crufty very quickly with orphans and other problems with references frequently cropping up;</li>
+<li>your test data is tightly coupled to your database design, leading to lots of refactoring and maintenance;</li>
+<li>the application often ends up in an inconsistent state (which is extremely hard to debug) because you've bypassed all the integrity checks and validation by writing straight to the database;</li>
+<li>it's extremely time consuming to write database scripts representing new test scenarios, and a lot of work to maintain them.</li>
+</ul>
+<p>Instead, we wrote C# code that instantiated domain objects and used our tightly-coupled services to populate the database. Although this solves the first two problems completely and considerably mitigates the third, it doesn't fix the fourth. This is demonstrated by the fact we still spend an awful lot of time manually interacting with the application to get it in the right state to test functionality.</p>
+<p>One obvious solution would be to record the service calls between client and server and play them back. However since the RPC calls are tightly coupled and fine-grained, any refactoring of the domain model would break anything thus recorded.</p>
+<p>Using the data migration services to perform this work would be relatively simple, and not nearly as susceptible to these problems. Furthermore, since the migration takes as its source plain text files, it's quite simple for customers, testers and developers to edit scripts and create new ones. We can also use these scripts as integration tests. However we'd still need to write a data export function so we could manually get the application into a particular state and then export it as a file.</p>
+<p>The lesson to me is that if migration or some other form of importing and exporting of your data is a requirement for your application, implement it near the beginning of the project, and leverage it for writing your test scripts. This will save you a lot of time, and mitigate some common risks. For instance, it's easy to have your validation in your control, or tightly coupled to it. Using your services to load your data forces you to put adequate validation on the server side, and to find ways to re-use it on the client side.</p>
+<p>It also provides a very simple way for you to load large data sets to test your application's performance - an area which we only realised was a problem relatively recently and  have had to spend a disproportionately large amount of time fixing.</p>
+<p>In summary, writing data import / export services early on forces you to address the common bad habits that it's so easy to fall into when designing services - making them too fine-grained, coupling them very tightly to the domain model, and providing insufficient validation. It also makes life for customers, testers and developers considerably easier.</p>
