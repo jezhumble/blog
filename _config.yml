@@ -20,3 +20,5 @@ incremental: true
 
 # Build settings
 markdown: kramdown
+kramdown:
+  smart_quotes: lsquo,rsquo,ldquo,rdquo
