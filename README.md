@@ -2,7 +2,9 @@
 
 This is the source code for the site at https://jezhumble.net/
 
-The site is published using Jekyll: https://jekyllrb.com/
+The site is built with Jekyll (https://jekyllrb.com/) and published via GitHub Pages: every push to `master` runs the workflow in `.github/workflows/pages.yml`, which builds the site and deploys it to https://jezhumble.net/.
+
+To preview locally: `bundle install` then `bundle exec jekyll serve`.
 
 Everything in this site is copyright 2006-2016 Jez Humble
 

@@ -22,3 +22,10 @@ incremental: true
 markdown: kramdown
 kramdown:
   smart_quotes: lsquo,rsquo,ldquo,rdquo
+# Files that should not be copied into the published site
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .bundle
